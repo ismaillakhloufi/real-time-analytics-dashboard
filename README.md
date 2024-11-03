@@ -1,8 +1,9 @@
 # 📊 Real-Time Analytics Dashboard with Apache Kafka and Spark
 
-![Dashboard Preview](https://via.placeholder.com/800x400)  
+
+
 <p align="center">
-  <img src="./architecture.png" width="350px" alt="CuisineRAG Logo"/>
+  <img src="./architecture.png" width="800px" alt="CuisineRAG Logo"/>
 </p>
 *Real-time data processing and visualization pipeline for actionable insights.*
 
