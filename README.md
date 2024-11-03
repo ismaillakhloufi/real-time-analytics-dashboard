@@ -110,9 +110,9 @@ real-time-analytics-dashboard/
 
 ## 👥 Contributors
 This project was developed by:
-- **[Member 1](https://github.com/member1)** - Kafka and Data Ingestion
-- **[Member 2](https://github.com/member2)** - Spark Processing
-- **[Member 3](https://github.com/member3)** - Dashboard Visualization
+- **[LAKHLOUFI ISMIAL](https://github.com/lakhloufiismail)** - Kafka and Data Ingestion
+- **[AMMI YOUSSEF](https://github.com/Youssefammi123)** - Spark Processing
+- **[BOURKI ACHRAF](https://github.com/BOURKI970)** - Dashboard Visualization
 
 We welcome contributions! See the [contribution guidelines](CONTRIBUTING.md) to get started.
 
