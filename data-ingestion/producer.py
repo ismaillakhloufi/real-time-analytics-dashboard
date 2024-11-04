@@ -3,6 +3,10 @@ from kafka import KafkaProducer
 import json
 import time
 import random
+import pandas as pd
+
+
+
 
 # Initialize the Kafka producer
 producer = KafkaProducer(
@@ -12,12 +16,16 @@ producer = KafkaProducer(
 
 topic_name = 'stream-topic'  # Replace with your topic name
 
+
+
+df=pd.read_csv(f"data-ingestion/indexProcessed.csv")
+
 try:
     while True:
         # Generate sample data
         data = {
             'timestamp': time.time(),
-            'value': random.randint(1, 100)  # Random integer as an example
+            'value': df.sample(1).to_dict(orient="records")[0]  # Random integer as an example
         }
         # Send data to the Kafka topic
         producer.send(topic_name, value=data)
