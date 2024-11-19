@@ -12,7 +12,7 @@ services:
       - "8080:8080"
       - "4040:4040" # Interface Web pour vos jobs Spark
     volumes:
-      - C:\Users\MOHAMED\Downloads\real-time-analytics-dashboard:/app # Montez votre dossier local
+      - /c/Users/MOHAMED/Downloads/real-time-analytics-dashboard:/app # Montez votre dossier local
 
   spark-worker:
     image: bitnami/spark:latest
@@ -25,4 +25,4 @@ services:
     depends_on:
       - spark-master
     volumes:
-      - C:\Users\MOHAMED\Downloads\real-time-analytics-dashboard:/app # Montez aussi le volume ici si nécessaire
+      - /c/Users/MOHAMED/Downloads/real-time-analytics-dashboard:/app # Montez aussi le volume ici si nécessaire
