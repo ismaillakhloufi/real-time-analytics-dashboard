@@ -2,7 +2,7 @@ version: '3.8'
 services:
   spark-master:
     image: bitnami/spark:latest
-    container_name: spark-master
+    container_name: spark-master-new
     environment:
       - SPARK_MODE=master
       - SPARK_RPC_AUTHENTICATION_ENABLED=no
