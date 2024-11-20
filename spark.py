@@ -31,40 +31,104 @@ Original file is located at
 # # Enregistrer les résultats dans un fichier CSV
 # output_path = "output/stats_by_year"
 # df_stats.write.csv(output_path, header=
-
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, avg, max, min
+from pyspark.sql.functions import col, avg, max, min, stddev, year, month, count, lag
+from pyspark.sql.window import Window
+from pyspark.ml.feature import VectorAssembler
+from pyspark.ml.regression import LinearRegression
+import matplotlib.pyplot as plt
 
 # Créer une session Spark
 spark = SparkSession.builder \
-    .appName("Real-Time Analytics Dashboard - Spark") \
+    .appName("Advanced Real-Time Analytics Dashboard - Spark") \
     .getOrCreate()
 
 # Charger les données CSV
-data_path = "/content/indexProcessed.csv"  # Assurez-vous que le fichier CSV est dans ce chemin
-df = spark.read.csv(data_path, header=True, inferSchema=True)
+data_path = "/content/indexProcessed.csv"  # Chemin vers le fichier CSV
+try:
+    df = spark.read.csv(data_path, header=True, inferSchema=True)
+except Exception as e:
+    print(f"Erreur lors du chargement des données : {e}")
+    spark.stop()
+    exit()
 
 # Nettoyer les données (supprimer les lignes nulles)
 df_cleaned = df.na.drop()
 
-# Extraire l'année de la colonne Date
-df_cleaned = df_cleaned.withColumn("Year", col("Date").substr(1, 4))
+# Extraire l'année et le mois de la colonne "Date"
+df_cleaned = df_cleaned.withColumn("Year", year(col("Date"))) \
+    .withColumn("Month", month(col("Date")))
 
-# Calculs statistiques par année
-df_stats = df_cleaned.groupBy("Year") \
-    .agg(
-        avg("Close").alias("Avg_Close"),
-        max("Close").alias("Max_Close"),
-        min("Close").alias("Min_Close")
-    )
+# Calculs statistiques avancés par année et mois
+df_stats = df_cleaned.groupBy("Year", "Month").agg(
+    avg("Close").alias("Avg_Close"),
+    max("Close").alias("Max_Close"),
+    min("Close").alias("Min_Close"),
+    stddev("Close").alias("Stddev_Close"),
+    count("Close").alias("Count_Close")
+)
 
-# Afficher les résultats
+# Fenêtre pour calculer les variations mensuelles
+window_spec = Window.partitionBy("Year").orderBy("Month")
+df_stats = df_stats.withColumn("Prev_Close", lag("Avg_Close").over(window_spec)) \
+    .withColumn("Monthly_Change", col("Avg_Close") - col("Prev_Close"))
+
+# Gérer les valeurs nulles pour les premières lignes où Prev_Close est null
+df_stats = df_stats.fillna({"Monthly_Change": 0.0, "Prev_Close": 0.0})
+
+# Enregistrer les résultats dans un fichier CSV
+output_path = "output/advanced_stats"
+try:
+    df_stats.write.csv(output_path, header=True, mode="overwrite")
+    print(f"Statistiques enregistrées dans : {output_path}")
+except Exception as e:
+    print(f"Erreur lors de l'enregistrement des résultats : {e}")
+
+# Afficher un aperçu des résultats
+print("Statistiques mensuelles avancées:")
 df_stats.show()
 
-# Enregistrer les résultats dans un fichier CSV (remplacez "output/stats_by_year" par le chemin souhaité)
-output_path = "/content/output.csv"
-df_stats.write.csv(output_path, header=True, mode="overwrite")
+# Préparation des données pour un modèle de régression (prédiction des prix futurs)
+features_cols = ["Month", "Avg_Close", "Stddev_Close", "Monthly_Change"]
+assembler = VectorAssembler(inputCols=features_cols, outputCol="features")
+df_ml = assembler.transform(df_stats).select("features", col("Avg_Close").alias("label"))
+
+# Diviser les données en ensemble d'entraînement et de test
+train_data, test_data = df_ml.randomSplit([0.8, 0.2], seed=42)
+
+# Créer et entraîner un modèle de régression linéaire
+lr = LinearRegression(featuresCol="features", labelCol="label")
+lr_model = lr.fit(train_data)
+
+# Résumé du modèle
+print("Résumé du modèle de régression linéaire :")
+print(f"Coefficients : {lr_model.coefficients}")
+print(f"Intercept : {lr_model.intercept}")
+print(f"RMSE : {lr_model.summary.rootMeanSquaredError}")
+
+# Prédire sur l'ensemble de test
+predictions = lr_model.transform(test_data)
+
+# Afficher quelques prédictions
+print("Prédictions:")
+predictions.select("features", "label", "prediction").show()
+
+# Visualisation : évolution des moyennes mensuelles (nécessite Matplotlib)
+try:
+    df_stats_pd = df_stats.toPandas()
+    plt.figure(figsize=(10, 6))
+    for year in df_stats_pd["Year"].unique():
+        subset = df_stats_pd[df_stats_pd["Year"] == year]
+        plt.plot(subset["Month"], subset["Avg_Close"], label=f"Year {year}")
+
+    plt.title("Évolution des moyennes mensuelles")
+    plt.xlabel("Mois")
+    plt.ylabel("Prix moyen (Close)")
+    plt.legend()
+    plt.grid()
+    plt.show()
+except Exception as e:
+    print(f"Erreur lors de la visualisation : {e}")
 
 # Arrêter la session Spark
 spark.stop()
-
