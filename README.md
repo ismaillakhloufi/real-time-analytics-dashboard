@@ -53,9 +53,11 @@ Ce projet consiste en un pipeline d'analytique en temps réel qui traite des flu
 ---
 
 ## 👥 Contributeurs
-- [LAKHLOUFI ISMAIL](https://github.com/votre-profil) : Chef de projet et développement principal.
-- [AMMI YOUSSEF](https://github.com/collab1) : Traitement des données avec Spark.
-- [BOURKI ACHRAF](https://github.com/collab2) : Intégration de Grafana et InfluxDB.
+- [LAKHLOUFI ISMAIL](https://github.com/votre-profil) : 
+- [AMMI YOUSSEF](https://github.com/collab1) : 
+- [BOURKI ACHRAF](https://github.com/collab2) : I
+
+
 
 ---
 
