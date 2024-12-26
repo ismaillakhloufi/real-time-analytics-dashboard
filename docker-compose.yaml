@@ -1,0 +1,175 @@
+version: "3"
+
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    restart: unless-stopped
+    networks:
+      - bridge
+
+  kafka:
+    image: wurstmeister/kafka
+    container_name: kafka
+    ports:
+      - "9094:9094"
+    environment:
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ADVERTISED_PORT: "9094"
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_CREATE_TOPICS: "stock-general-information:4:1, real-time-stock-prices:4:1"
+      KAFKA_LOG_RETENTION_HOURS: 1
+      KAFKA_LOG_RETENTION_BYTES: 4073741824
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_RETENTION_CHECK_INTERVAL_MS: 300000
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,OUTSIDE://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,OUTSIDE://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    networks:
+      - bridge
+
+  spark-master:
+    image: docker.io/bitnami/spark:3.3
+    container_name: spark
+    environment:
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_USER=spark
+    ports:
+      - "8080:8080" # Spark Web UI
+      - "7077:7077"
+    depends_on:
+      - kafka # Ensure Kafka is up before starting Spark
+    volumes:
+      - ./:/app/ # Mount your Spark Streaming app
+    restart: unless-stopped
+    networks:
+      - bridge
+
+  spark-submit:
+    image: docker.io/bitnami/spark:3.3
+    container_name: spark_submit
+    environment:
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
+      INFLUXDB_MEASUREMENT: ${INFLUXDB_MEASUREMENT}
+      INFLUX_ORG: ${INFLUX_ORG}
+      INFLUX_TOKEN: ${INFLUX_TOKEN}
+    volumes:
+      - ./:/app/
+      - ./packages/postgresql-42.5.4.jar:/opt/bitnami/spark/jars/postgresql-42.5.4.jar
+    command:
+      [
+        "sh",
+        "-c",
+        "pip install -r /app/requirements.txt && spark-submit --jars /opt/bitnami/spark/jars/postgresql-42.5.4.jar --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.3 --master spark://spark-master:7077 /app/consumer/consumer.py",
+      ]
+    depends_on:
+      - spark-master
+    #restart: unless-stopped
+    networks:
+      - bridge
+
+  spark-worker:
+    image: docker.io/bitnami/spark:3.3
+    container_name: spark_worker
+    # environment:
+    #   - SPARK_MODE=worker
+    #   - SPARK_MASTER_URL=spark://spark-master:7077
+    #   - SPARK_WORKER_MEMORY=1G
+    #   - SPARK_WORKER_CORES=1
+    #   - SPARK_RPC_AUTHENTICATION_ENABLED=no
+    #   - SPARK_RPC_ENCRYPTION_ENABLED=no
+    #   - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+    #   - SPARK_SSL_ENABLED=no
+    #   - SPARK_USER=spark
+    environment:
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_WORKER_MEMORY: 1G
+      SPARK_WORKER_CORES: 1
+      SPARK_RPC_AUTHENTICATION_ENABLED: no
+      SPARK_RPC_ENCRYPTION_ENABLED: no
+      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: no
+      SPARK_SSL_ENABLED: no
+      SPARK_USER: spark
+    ports:
+      - "8081:8081"
+    networks:
+      - bridge
+
+  influxdb:
+    image: bitnami/influxdb:2.5.1
+    container_name: influxdb
+    restart: always
+    ports:
+      - 8086:8086
+    volumes:
+      - .\influxdb:/bitnami/influxdb
+    environment:
+      INFLUXDB_ADMIN_USER_PASSWORD: "admin123"
+      INFLUXDB_USER: "user123"
+      INFLUXDB_USER_PASSWORD: "user123456"
+      INFLUXDB_ADMIN_USER_TOKEN: ${INFLUX_TOKEN}
+    networks:
+      - bridge
+
+  grafana:
+    image: grafana/grafana-oss:8.4.3
+    container_name: grafana
+    volumes:
+      - grafana-storage:/var/lib/grafana:rw
+      - ./grafana-provisioning/:/etc/grafana/provisioning/
+    depends_on:
+      - influxdb
+    ports:
+      - 3000:3000
+    networks:
+      - bridge
+    environment:
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUX_ORG}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUX_TOKEN}
+
+  stock-python:
+    image: stock-python
+    container_name: stock-python
+    build: ./producer
+    ports:
+      - "5000:5000"
+    depends_on:
+      - kafka
+    # environment:
+    #   - POSTGRES_USER=admin
+    #   - POSTGRES_PASSWORD=admin
+    #   - POSTGRES_HOST=postgresql
+    #   - POSTGRES_PORT=5432
+    #   - POSTGRES_DBNAME=stock-info
+    #   - STOCKS=AMZN,AAPL,MSFT,GOOGL
+    #environment:
+     # POSTGRES_USER: ${POSTGRES_USER}
+      #POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      #POSTGRES_HOST: ${POSTGRES_HOST}
+      #POSTGRES_PORT: ${POSTGRES_PORT}
+      #POSTGRES_DBNAME: ${POSTGRES_DBNAME}
+      #STOCKS: ${STOCKS}
+    volumes:
+      - ./logs:/app/logs
+      - ./producer:/app
+    networks:
+      - bridge
+
+volumes:
+  grafana-storage:
+
+networks:
+  bridge:
