@@ -53,9 +53,9 @@ Ce projet consiste en un pipeline d'analytique en temps réel qui traite des flu
 ---
 
 ## 👥 Contributeurs
-- [LAKHLOUFI ISMAIL](https://github.com/votre-profil) : 
-- [AMMI YOUSSEF](https://github.com/collab1) : 
-- [BOURKI ACHRAF](https://github.com/collab2) : I
+- [LAKHLOUFI ISMAIL](https://github.com/ismaillakhloufi) : 
+- [AMMI YOUSSEF](https://github.com/youssefammi123/) : 
+- [BOURKI ACHRAF](https://github.com/BOURKI970/) : I
 
 
 
