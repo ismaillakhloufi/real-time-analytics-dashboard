@@ -49,6 +49,9 @@ Ce projet consiste en un pipeline d'analytique en temps réel qui traite des flu
    ```
 3. **Accéder à Grafana** :
    Ouvrez `http://localhost:3000` pour visualiser les données en temps réel.
+<div align="center">
+  <img src="dashboard.jpeg" alt="Results Page" width="700">
+</div>  
 
 ---
 
